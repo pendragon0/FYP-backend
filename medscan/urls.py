@@ -15,9 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 # cbcscanner/urls.py
+from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path, include
+from django.conf.urls.static import static
+
 
 def index(request):
     return HttpResponse('DJANGO API')
@@ -26,3 +29,6 @@ urlpatterns = [
     path('api/API/', include('API.urls')),
     path('', index)
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

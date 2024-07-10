@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,7 +25,7 @@ SECRET_KEY = 'django-insecure-+g7p%bs=th4==31&f6or7-5@n2@!#vin*dp*ti_98cv&8c(&u9
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['192.168.18.101', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['192.168.18.101', 'localhost', '127.0.0.1','192.168.2.103','192.168.100.85']
 
 
 
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'API'
 ]
 
 MIDDLEWARE = [
@@ -116,6 +118,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
