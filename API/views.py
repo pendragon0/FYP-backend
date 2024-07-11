@@ -12,7 +12,7 @@ import logging
 from django.shortcuts import render
 from .models import UserReport
 from django.contrib.auth.models import User
-from .forms import UploadFileForm
+# from .forms import UploadFileForm
 from django.http import JsonResponse
 import pytesseract
 from PIL import Image
@@ -27,7 +27,7 @@ class CBCReportView(APIView):
 
     def post(self, request, format=None):
         print('STARTED')
-        logger.info("Received request with data: %s", request.data)
+        # logger.info("Received request with data: %s", request.data)
         
         if 'file' not in request.FILES or 'email' not in request.data:
             print("File or email not found in request")
@@ -35,78 +35,69 @@ class CBCReportView(APIView):
         
         file_obj = request.FILES['file']
         # username = request.data['username']
+        report_identifier = request.data['report_identifier']
         email = request.data['email']
-        
-        user_report = UserReport(email= email, file=file_obj)
-        user_report.save()
-        print('USER REPORT UPDATED FILE AND USER************')
-        file_type = file_obj.content_type
-        file_extension = os.path.splitext(file_obj.name)[1].lower()
-        print(file_extension)
-        if file_type == 'application/pdf' or file_extension == '.pdf':
-            pdf_path = user_report.file.path
+        file_name = file_obj.name
+        # print('file OBJ:***', file_obj)
+
+        if report_identifier:
             try:
-                text = self.extract_text_from_pdf(pdf_path)
-            except Exception as e:
-                return Response({"error": f"Failed to process PDF: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-        elif file_type in ['image/jpeg', 'image/png'] or file_extension in ['.jpg', '.jpeg', '.png']:
-            image_path = user_report.file.path
-            try:
-                text = self.extract_text_from_image(image_path)
-            except Exception as e:
-                return Response({"error": f"Failed to process image: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                user_report = UserReport.objects.get(email=email, report_identifier=report_identifier)
+            except UserReport.DoesNotExist:
+                user_report = UserReport(email=email, report_identifier=report_identifier)
         else:
-            return Response({"error": "Unsupported file type"}, status=status.HTTP_400_BAD_REQUEST)
+            user_report = UserReport(email=email)
 
-        # pdf_path = user_report.file.path
-        try:
-            text = self.extract_text_from_pdf(pdf_path)
-            # user_report.text = text
+
+        if 'MEDSCAN_00' in file_name:
+            # user_report = UserReport(diagnosis_file = file_obj)
+            user_report.diagnosis_file = file_obj
             # user_report.save()
-            # print('USER REPORT UPDATED TEXT************')
-        except Exception as e:
-            return Response({"error": f"Failed to process PDF: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+                
+            # user_report = UserReport(email= email, file=file_obj)
+            user_report.uploaded_file =file_obj
+            user_report.save()
+            # user_report.save()
+            # print('USER REPORT UPDATED FILE AND USER************')
+            file_type = file_obj.content_type
+            file_extension = os.path.splitext(file_obj.name)[1].lower()
+            
+            print(file_extension)
 
-        
-        # logger.info("Received file: %s", file_obj.name)
-        
-        # temp_dir = 'temp'
-        
-        # if not os.path.exists(temp_dir):
-        #     os.makedirs(temp_dir)
-        
+            #Checking to see if the file is a pdf or an image
 
-        # pdf_path = os.path.join(temp_dir, file_obj.name)
-        
-        # with open(pdf_path, 'wb+') as temp_file:
-        #     for chunk in file_obj.chunks():
-        #         temp_file.write(chunk)
-        
-        # if not os.path.exists(pdf_path):
-        #     logger.error("File not found after upload")
-        #     return Response({"error": "File not found after upload."}, status=status.HTTP_400_BAD_REQUEST)
+            if file_type == 'application/pdf' or file_extension == '.pdf':
+                user_report.save()
+                pdf_path = user_report.uploaded_file.path
+                print(user_report.uploaded_file)
+                try:
+                    text = self.extract_text_from_pdf(pdf_path)
+                except Exception as e:
+                    return Response({"error": f"Failed to process PDF: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            elif file_type in ['image/jpeg', 'image/png'] or file_extension in ['.jpg', '.jpeg', '.png']:
+                user_report.save()
+                image_path = user_report.uploaded_file.path
+                try:
+                    text = self.extract_text_from_image(image_path)
+                except Exception as e:
+                    return Response({"error": f"Failed to process image: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"error": "Unsupported file type"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # try:
-        #     text = self.extract_text_from_pdf(pdf_path)
-        #     # print(text)
-        # except Exception as e:
-        #     logger.error("Failed to process PDF: %s", str(e))
-        #     return Response({"error": f"Failed to process PDF: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        attributes = self.parse_cbc_report(text)
-        
-        # serializer = CBCReportSerializer(data=attributes)
-        # if serializer.is_valid():
-        #     return Response(serializer.data, status=status.HTTP_200_OK)
-        # logger.error("Serializer errors: %s", serializer.errors)
-        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # print('image path determined')
+            attributes = self.parse_cbc_report(text)
+            
+            print("PARSED ATTRIBUTES:****", attributes)
+            return Response(attributes, status=status.HTTP_200_OK)
 
-        logger.info("Parsed attributes: %s", attributes)
-        print("PARSED ATTRIBUTES:****", attributes)
-        return Response(attributes, status=status.HTTP_200_OK)
+        user_report.save()
+        return Response({"message": "File uploaded successfully."}, status=status.HTTP_200_OK)
+
 
     def extract_text_from_pdf(self, pdf_path):
-        print('opening file....')
+        print('opening file....', pdf_path)
         with open(pdf_path, 'rb') as file:
             print('file opened----')
             
@@ -185,16 +176,6 @@ class CBCReportView(APIView):
 
 class UserReportView(APIView):
     def get(self, request, email, format=None):
-        # try:
-        #     # file = request.FILES['files']
-        #     # user = User.objects.get(username=username)
-        #     email = User.objects.get(email = email)
-
-        # except User.DoesNotExist:
-        #     return Response({"error": "User does not exist"}, status=status.HTTP_400_BAD_REQUEST)
-        print(f'EMAIL---- {email}')
-        reports = UserReport.objects.filter(email = email).values('file', 'uploaded_at')
+        reports = UserReport.objects.filter(email=email).values('uploaded_file', 'diagnosis_file', 'uploaded_at', 'report_identifier')
         return Response(reports, status=status.HTTP_200_OK)
-
-
 
